@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -23,7 +24,7 @@ class PushService {
       _messaging = FirebaseMessaging.instance;
 
       // Request permissions on iOS only if Firebase initialized
-      if (Platform.isIOS && Firebase.apps.isNotEmpty) {
+      if (!kIsWeb && Platform.isIOS && Firebase.apps.isNotEmpty) {
         await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
       }
 
@@ -43,7 +44,7 @@ class PushService {
       }
 
       // Request notifications permission on Android 13+ (Tiramisu)
-      if (Platform.isAndroid) {
+      if (!kIsWeb && Platform.isAndroid) {
         final status = await Permission.notification.status;
         if (!status.isGranted) {
           await Permission.notification.request();
@@ -51,8 +52,10 @@ class PushService {
       }
 
       // Create a default notification channel for Android
-      const androidChannel = AndroidNotificationChannel('healthmate_alerts', 'Healthmate Alerts', importance: Importance.high);
-      await _local.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(androidChannel);
+      if (!kIsWeb) {
+        const androidChannel = AndroidNotificationChannel('healthmate_alerts', 'Healthmate Alerts', importance: Importance.high);
+        await _local.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(androidChannel);
+      }
 
       // Obtain FCM token and subscribe only if Firebase is available
       if (Firebase.apps.isNotEmpty) {

@@ -4,11 +4,15 @@
 // can succeed on Android. Replace or re-generate with the FlutterFire
 // CLI for multi-platform support.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 
 class DefaultFirebaseOptions {
   static FirebaseOptions? get currentPlatform {
+    if (kIsWeb) {
+      return null;
+    }
     if (Platform.isAndroid) {
       return const FirebaseOptions(
         apiKey: 'AIzaSyCI6JeIbSndk_GzN1zJcXiWovgPR21F3Bs',

@@ -58,7 +58,7 @@ dependencies:
   geolocator: ^13.0.1
   geocoding: ^3.0.0
   shimmer: ^2.0.0
-  google_fonts: ^5.0.0
+  google_fonts: ^6.3.3
 
 dev_dependencies:
   flutter_test:
