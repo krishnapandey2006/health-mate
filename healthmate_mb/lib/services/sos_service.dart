@@ -9,7 +9,9 @@ class SOSService {
         final req = await Geolocator.requestPermission();
         if (req == LocationPermission.denied) return null;
       }
-      return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+      );
     } catch (e) {
       return null;
     }

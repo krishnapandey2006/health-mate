@@ -1,57 +1,91 @@
 import 'dart:convert';
+
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart';
-import 'package:flutter/services.dart';
 
 class AppLocalizations {
   final Locale locale;
-  // initialize to empty so callers can safely use t() before load()
   Map<String, String> _strings = {};
+
+  static final Map<String, Map<String, String>> _cache = {};
+  static Map<String, String>? _englishFallback;
 
   AppLocalizations(this.locale);
 
   static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
+  static const supportedLanguageCodes = ['en', 'hi', 'mr', 'bn', 'gu', 'ta'];
+
   static AppLocalizations of(BuildContext context) {
     final loc = Localizations.of<AppLocalizations>(context, AppLocalizations);
     if (loc != null) return loc;
-    // Fallback: return a default English localization with empty strings
-    return AppLocalizations(const Locale('en'));
+    final fallback = AppLocalizations(const Locale('en'));
+    fallback._strings = _englishFallback ?? {};
+    return fallback;
   }
 
-  Future<bool> load(BuildContext context) async {
-    // Compatibility: allow loading via BuildContext or asset bundle directly.
-    final name = 'lib/l10n/intl_${locale.languageCode}.arb';
-    final data = await rootBundle.loadString(name);
-    final Map<String,dynamic> jsonMap = json.decode(data);
-    _strings = jsonMap.map((k,v) => MapEntry(k, v.toString()));
-    return true;
-  }
-
-  // Internal convenience used by the delegate which doesn't have a BuildContext
+  /// Loads the locale file and overlays it on English. Missing translations
+  /// therefore show readable English instead of raw keys.
   Future<bool> loadFromAssets() async {
-    final name = 'lib/l10n/intl_${locale.languageCode}.arb';
+    final code = locale.languageCode;
     try {
-      final data = await rootBundle.loadString(name);
-      final Map<String,dynamic> jsonMap = json.decode(data);
-      _strings = jsonMap.map((k,v) => MapEntry(k, v.toString()));
+      final english = _englishFallback ?? await _readAsset('en');
+      _englishFallback = english;
+      if (code == 'en') {
+        _strings = english;
+        return true;
+      }
+      final localized = await _readAsset(code);
+      _strings = {...english, ...localized};
       return true;
-    } catch (e) {
-      // fallback to empty strings on error
-      _strings = {};
+    } catch (_) {
+      _strings = _englishFallback ?? {};
       return false;
     }
   }
 
-  String t(String key) => _strings[key] ?? key;
+  Future<Map<String, String>> _readAsset(String code) async {
+    final cached = _cache[code];
+    if (cached != null) return cached;
+    final data = await rootBundle.loadString('lib/l10n/intl_$code.arb');
+    final decoded = jsonDecode(data);
+    final map = <String, String>{};
+    if (decoded is Map) {
+      decoded.forEach((key, value) {
+        if (!key.toString().startsWith('@') && value is String) {
+          map[key.toString()] = value;
+        }
+      });
+    }
+    _cache[code] = map;
+    return map;
+  }
+
+  Future<bool> load(BuildContext context) => loadFromAssets();
+
+  String t(String key) {
+    final value = _strings[key];
+    if (value != null && value.isNotEmpty) return value;
+    final english = _englishFallback?[key];
+    if (english != null && english.isNotEmpty) return english;
+    return key;
+  }
+
+  String tr(String key, Map<String, String> values) {
+    var value = t(key);
+    values.forEach((name, replacement) {
+      value = value.replaceAll('{$name}', replacement);
+    });
+    return value;
+  }
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
-  // Keep this list in sync with MaterialApp.supportedLocales in main.dart
-  @override
-  bool isSupported(Locale locale) => ['en','hi','mr','bn','ta','te','kn','ml','gu','pa'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      AppLocalizations.supportedLanguageCodes.contains(locale.languageCode);
 
   @override
   Future<AppLocalizations> load(Locale locale) async {
